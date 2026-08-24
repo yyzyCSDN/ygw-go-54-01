@@ -39,7 +39,7 @@ func (s *Service) Range(rect model.Rect) ([]model.Point, error) {
 	s.stats.ObserveRange(result.Bounds)
 	candidates := result.Points[:0]
 	for _, point := range result.Points {
-		if point.X >= rect.MinX && point.X < rect.MaxX && point.Y >= rect.MinY && point.Y < rect.MaxY {
+		if rect.ContainsPoint(point) {
 			candidates = append(candidates, point)
 		}
 	}

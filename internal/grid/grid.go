@@ -204,7 +204,7 @@ func (g *Grid) QueryRange(rect model.Rect) *RangeResult {
 	}
 	filtered := points[:0]
 	for _, point := range points {
-		if point.X >= rect.MinX && point.X < rect.MaxX && point.Y >= rect.MinY && point.Y < rect.MaxY {
+		if rect.ContainsPoint(point) {
 			filtered = append(filtered, point)
 		}
 	}
