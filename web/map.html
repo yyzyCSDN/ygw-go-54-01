@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>GeoIndex 地图瓦片浏览</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; color: #222; }
+    h1 { font-size: 20px; }
+    .panel { border: 1px solid #ccc; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { border: 1px solid #ddd; padding: 4px 8px; text-align: left; font-size: 13px; }
+    code { background: #f4f4f4; padding: 2px 4px; }
+    .mono { font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <h1>GeoIndex 地图瓦片浏览</h1>
+  <div class="panel">
+    <p>服务状态：<code id="status">加载中…</code></p>
+    <p>健康检查：<code id="health">-</code></p>
+  </div>
+  <div class="panel">
+    <h2>索引统计</h2>
+    <table>
+      <thead><tr><th>项目</th><th>数值</th></tr></thead>
+      <tbody id="stats-body">
+        <tr><td>暂无数据</td><td>-</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>范围查询</h2>
+    <p>
+      范围：
+      <input id="minx" type="number" value="-180" step="0.1">
+      <input id="miny" type="number" value="-90" step="0.1">
+      至
+      <input id="maxx" type="number" value="180" step="0.1">
+      <input id="maxy" type="number" value="90" step="0.1">
+      <button id="query-btn">查询</button>
+    </p>
+    <pre id="query-result" class="mono">等待查询…</pre>
+  </div>
+  <div class="panel">
+    <h2>瓦片</h2>
+    <p>缩放级别 0 的瓦片内容：</p>
+    <pre id="tile-result" class="mono">等待渲染…</pre>
+  </div>
+  <script>
+    async function refresh() {
+      const health = await fetch('/healthz').then(r => r.json());
+      document.getElementById('health').textContent = JSON.stringify(health);
+      const stats = await fetch('/api/v1/stats').then(r => r.json());
+      const rows = [
+        ['网格单元数', stats.grid.CellCount],
+        ['索引点数', stats.grid.PointCount],
+        ['分裂次数', stats.grid.SplitCount],
+        ['范围查询次数', stats.query.RangeCount],
+        ['最近邻查询次数', stats.query.NearestCount],
+        ['瓦片缓存', stats.tiles.cached],
+        ['多边形', stats.polygons],
+        ['WAL 条目', stats.walEntries],
+      ];
+      const body = document.getElementById('stats-body');
+      body.innerHTML = rows.map(([name, value]) =>
+        `<tr><td>${name}</td><td>${value}</td></tr>`).join('');
+      document.getElementById('status').textContent = '在线';
+    }
+
+    async function runQuery() {
+      const minx = document.getElementById('minx').value;
+      const miny = document.getElementById('miny').value;
+      const maxx = document.getElementById('maxx').value;
+      const maxy = document.getElementById('maxy').value;
+      const url = `/api/v1/query/range?minx=${minx}&miny=${miny}&maxx=${maxx}&maxy=${maxy}`;
+      const result = await fetch(url).then(r => r.json());
+      document.getElementById('query-result').textContent =
+        `共 ${result.count} 个点\n` + result.points.map(p =>
+          `${p.ID} (${p.X.toFixed(3)}, ${p.Y.toFixed(3)}) ${p.Category || ''}`).join('\n');
+    }
+
+    async function loadTile() {
+      const text = await fetch('/api/v1/tiles/0/0/0').then(r => r.text());
+      document.getElementById('tile-result').textContent = text;
+    }
+
+    document.getElementById('query-btn').addEventListener('click', runQuery);
+    refresh().catch(err => {
+      document.getElementById('status').textContent = '离线: ' + err.message;
+    });
+    loadTile();
+  </script>
+</body>
+</html>
