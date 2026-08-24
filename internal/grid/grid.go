@@ -197,7 +197,7 @@ func (g *Grid) ApplyPoint(point model.Point) error {
 func (g *Grid) QueryRange(rect model.Rect) *RangeResult {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
-	cells := g.CellsForQuery(rect)
+	cells := g.cellsForQueryLocked(rect)
 	points := make([]model.Point, 0, 8)
 	for _, cell := range cells {
 		for _, id := range cell.PointIDs() {
@@ -210,20 +210,13 @@ func (g *Grid) QueryRange(rect model.Rect) *RangeResult {
 	return &RangeResult{Points: points, Bounds: rect, CellCount: len(cells)}
 }
 
-// CellsForQuery resolves the cells to scan for a query rectangle.
+// CellsForQuery resolves the stable cells to scan for a query rectangle,
+// descending through split cells so callers always observe the current
+// topology rather than a pre-split snapshot.
 func (g *Grid) CellsForQuery(rect model.Rect) []*Cell {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
-	var out []*Cell
-	var walk func(*Cell)
-	walk = func(cell *Cell) {
-		if !cell.Bounds.Rect().Overlaps(rect) {
-			return
-		}
-		out = append(out, cell)
-	}
-	walk(g.root)
-	return out
+	return g.cellsForQueryLocked(rect)
 }
 
 // cellsForQueryLocked resolves the stable cells overlapping the rectangle,
