@@ -14,6 +14,9 @@ func (s *Service) AddPoint(point model.Point) error {
 	if _, err := s.log.Append(op); err != nil {
 		return err
 	}
+	if _, err := s.grid.Put(stored); err != nil {
+		return err
+	}
 	s.tree.Insert(stored)
 	s.invalidateRegion(model.PointRect(stored))
 	return nil
