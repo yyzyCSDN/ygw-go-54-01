@@ -42,7 +42,7 @@ func (r *Renderer) Zooms() []int {
 // served directly; otherwise a render job moves through pending, rendering
 // and published states before the payload is cached.
 func (r *Renderer) Render(z, x, y int) ([]byte, error) {
-	key := renderKey(z, x, y)
+	key := r.grid.TileKey(z, x, y)
 	if data, ok := r.cache.Get(key); ok {
 		return data, nil
 	}
@@ -54,11 +54,6 @@ func (r *Renderer) Render(z, x, y int) ([]byte, error) {
 	r.cache.Put(key, payload)
 	r.jobs.Publish(key)
 	return payload, nil
-}
-
-// renderKey builds the legacy cache key used by the renderer.
-func renderKey(z, x, y int) string {
-	return fmt.Sprintf("tile:%d:%d:%d", z, x, y)
 }
 
 // renderTile computes the tile bounds and serializes every indexed point that
