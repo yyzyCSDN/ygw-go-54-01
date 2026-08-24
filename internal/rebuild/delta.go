@@ -1,5 +1,7 @@
 package rebuild
 
+import "time"
+
 // MergeDelta folds every operation committed after Begin into the rebuilt
 // index. Skipping this phase would drop writes that arrived mid-rebuild.
 func (rb *Rebuilder) MergeDelta() error {
@@ -8,6 +10,20 @@ func (rb *Rebuilder) MergeDelta() error {
 	if rb.built == nil {
 		return ErrRebuildNotStarted
 	}
+	started := time.Now()
+	ops := rb.log.Since(rb.baseSeq)
+	applied := 0
+	for _, op := range ops {
+		if err := rb.applyOp(rb.built, op); err != nil {
+			return err
+		}
+		applied++
+	}
+	// Advance the boundary past everything just folded in so the progress
+	// indicator reflects the merged state rather than stale pending ops.
+	rb.baseSeq = rb.log.NextSeq()
+	rb.stats.AppliedOps = applied
+	rb.stats.DeltaMs = time.Since(started).Milliseconds()
 	return nil
 }
 
